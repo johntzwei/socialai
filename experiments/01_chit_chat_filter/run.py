@@ -28,7 +28,7 @@ CACHE_DIR = "/project2/robinjia_875/wangzhu/eric_huang/.cache/huggingface"
 DATASET_NAME = "allenai/WildChat-1M"
 
 
-def preprocess():
+def preprocess(limit: int | None = None):
     """Download WildChat, filter to English, deduplicate, write JSONL."""
     from datasets import load_dataset
 
@@ -48,6 +48,10 @@ def preprocess():
     dataset = dataset.select(unique_indices)
     print(f"After English + dedup: {len(dataset)} conversations")
 
+    if limit is not None:
+        dataset = dataset.select(range(min(limit, len(dataset))))
+        print(f"Limiting to first {len(dataset)} conversations")
+
     os.makedirs(RESULTS_DIR, exist_ok=True)
     with open(DATA_FILE, "w") as f:
         for row in dataset:
@@ -57,7 +61,7 @@ def preprocess():
                 "conversation": row["conversation"],
                 "timestamp": str(row.get("timestamp", "")),
             }
-            f.write(json.dumps(record) + "\n")
+            f.write(json.dumps(record, default=str) + "\n")
     print(f"Wrote {DATA_FILE}")
 
 
@@ -83,12 +87,13 @@ if __name__ == "__main__":
     parser.add_argument("--preprocess", action="store_true", help="Run preprocessing step")
     parser.add_argument("--judge", action="store_true", help="Run judge step")
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-VL-8B-Instruct")
+    parser.add_argument("--limit", type=int, default=None, help="Limit preprocessing to first N examples")
     args = parser.parse_args()
 
     if not args.preprocess and not args.judge:
         parser.error("Specify --preprocess and/or --judge")
 
     if args.preprocess:
-        preprocess()
+        preprocess(limit=args.limit)
     if args.judge:
         judge(args)

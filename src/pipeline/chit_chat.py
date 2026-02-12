@@ -2,7 +2,7 @@
 
 from pipeline.judge import Judge
 
-SYSTEM_PROMPT = """You are a dataset curator. Analyze the USER's first message in a conversation with an AI assistant.
+SYSTEM_PROMPT = """You are a dataset curator. Analyze the first exchange (user message and assistant response) in a conversation with an AI assistant.
 
 Determine if this conversation is CHIT-CHAT or TASK-ORIENTED.
 
@@ -40,10 +40,20 @@ class ChitChatJudge(Judge):
         user_msg = conversation[0].get("content", "").strip()
         if len(user_msg) < 5:
             return None
-        # Truncate long first messages
         if len(user_msg) > 4000:
             user_msg = user_msg[:4000]
-        return user_msg
+
+        # Include first assistant response if available
+        assistant_msg = ""
+        if len(conversation) > 1:
+            assistant_msg = conversation[1].get("content", "").strip()
+            if len(assistant_msg) > 4000:
+                assistant_msg = assistant_msg[:4000]
+
+        text = f"[USER]: {user_msg}"
+        if assistant_msg:
+            text += f"\n\n[ASSISTANT]: {assistant_msg}"
+        return text
 
     def judge_type(self) -> str:
         return "chit_chat"

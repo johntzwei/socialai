@@ -1,50 +1,26 @@
-# allegro-project
+# socialai
 
-Research project template for the Allegro lab.
-
-## Starting a New Project
-
-Click **"Use this template"** on GitHub to create a new repo, then:
-
-```bash
-git clone git@github.com:<your-username>/<your-project>.git
-cd <your-project>
-
-# Rename the package: replace "allegro" with your project name
-mv src/allegro src/<your_project>
-# Update "allegro" -> "<your_project>" in pyproject.toml (name and packages)
-# Update imports in experiments/00_example/run.py and tests/
-
-bash install_uv.sh   # if uv not installed
-uv sync
-```
+Studying anthropomorphic behavior in LLMs. We filter and analyze large-scale conversation datasets (WildChat) using LLM-as-a-judge pipelines to identify when AI assistants present themselves as having human-like qualities.
 
 ## Setup
 
 ```bash
-# 1. Install uv (if not already installed)
-bash install_uv.sh
-
-# 2. Create venv and install all dependencies
+bash install_uv.sh   # if uv not installed
 uv sync
-
-# 3. (Optional) Install dev dependencies
-uv sync --extra dev
 ```
 
 ## Usage
 
 ```bash
-# Run an experiment (uv run handles venv activation automatically)
-uv run python experiments/00_example/run.py
+# Run an experiment
+uv run python experiments/01_chit_chat_filter/run.py --preprocess --judge
 
 # Submit to SLURM
-sbatch slurm/run_gpu.sbatch experiments/00_example/run.py
-sbatch slurm/run_preempt.sbatch experiments/00_example/run.py
+sbatch slurm/run_gpu.sbatch experiments/01_chit_chat_filter/run.py --judge
+sbatch slurm/run_preempt.sbatch experiments/01_chit_chat_filter/run.py --judge
 
-# Submit an array of experiments (runs 00, 01, 02)
-# Each experiment can read SLURM_ARRAY_TASK_ID from the environment
-sbatch --array=0-2 slurm/run_array.sbatch
+# Array jobs (sharded across GPUs)
+sbatch --array=0-4 slurm/run_gpu.sbatch experiments/01_chit_chat_filter/run.py --judge
 
 # Run tests
 uv run pytest
@@ -53,34 +29,16 @@ uv run pytest
 ## Project Structure
 
 ```text
-src/allegro/       # Shared library code (reusable modules with argparse)
-experiments/       # Numbered experiment scripts (hardcoded params, version-controlled)
+src/allegro/       # Shared library code (reusable modules)
+src/pipeline/      # LLM-as-a-judge pipeline (base class, judges)
+experiments/       # Numbered experiment scripts
 slurm/             # SLURM job templates
 tests/             # Tests
 ```
 
-## Experiments
+## Pipeline
 
-Each experiment is a numbered, self-contained script that hardcodes its parameters and calls into `src/`:
+The judge pipeline (`src/pipeline/`) uses a vLLM server with async inference, SLURM array sharding, and automatic resumption. Two judges are implemented:
 
-```text
-experiments/
-  00_example/
-    run.py              # experiment script (version-controlled)
-    results/            # outputs (gitignored)
-    logs/               # logs (gitignored)
-    figures/            # plots (gitignored)
-  01_baseline/
-    run.py
-  ...
-```
-
-Create new folders for new experiments — don't edit old ones.
-
-## Experiment Tracking
-
-Uses Weights & Biases. Disable with:
-
-```bash
-export WANDB_MODE=disabled
-```
+1. **Chit-chat filter** (`pipeline.chit_chat`) — classifies whether a conversation is casual chit-chat vs. task-oriented
+2. **Anthropomorphic judge** (`pipeline.anthropomorphic`) — detects whether an AI assistant claims emotions, experiences, identity, or consciousness
